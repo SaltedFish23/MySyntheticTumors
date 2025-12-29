@@ -5,7 +5,7 @@ from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import MapTransform, RandomizableTransform
 
-from .utils import SynthesisTumor, get_predefined_texture
+from utils import SynthesisTumor, get_predefined_texture
 import numpy as np
 
 class TumorGenerated(RandomizableTransform, MapTransform):
