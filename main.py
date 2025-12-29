@@ -7,6 +7,7 @@ from monai import transforms, data
 import warnings
 
 import numpy as np
+import re
 
 # Keep your custom import
 from TumorGenerated import TumorGenerated 
@@ -84,15 +85,8 @@ def save_nifti(data_tensor, meta_dict, output_path):
 
 def get_datalist_from_folder(root_dir):
     """
-    Scans the folder for images and labels automatically.
-    Assumes standard structure:
-       root_dir/
-          imagesTr/
-             img1.nii.gz
-             ...
-          labelsTr/
-             img1.nii.gz
-             ...
+    Scans for pairs by extracting the first number found in the filename.
+    Example: '1_image.nii.gz' matches with '1_segmentation.nii.gz' (ID='1')
     """
     image_dir = os.path.join(root_dir, "imagesTr")
     label_dir = os.path.join(root_dir, "labelsTr")
@@ -100,22 +94,40 @@ def get_datalist_from_folder(root_dir):
     if not os.path.exists(image_dir) or not os.path.exists(label_dir):
         raise FileNotFoundError(f"Could not find 'imagesTr' or 'labelsTr' inside {root_dir}")
 
-    # Find all NIfTI files in imagesTr
-    # We search for .nii.gz and .nii
-    image_files = sorted(glob.glob(os.path.join(image_dir, "*.nii*")))
-    
+    # 1. Get all NIfTI files
+    image_paths = sorted(glob.glob(os.path.join(image_dir, "*.nii*")))
+    label_paths = sorted(glob.glob(os.path.join(label_dir, "*.nii*")))
+
+    # 2. Build a lookup dictionary for labels: { "ID": "full_path" }
+    label_map = {}
+    for path in label_paths:
+        filename = os.path.basename(path)
+        # Regex to find the first number in the string
+        match = re.search(r'(\d+)', filename)
+        if match:
+            file_id = match.group(1)
+            label_map[file_id] = path
+
     datalist = []
-    for img_path in image_files:
-        file_name = os.path.basename(img_path)
+    
+    # 3. Iterate through images and try to find a matching label ID
+    for img_path in image_paths:
+        filename = os.path.basename(img_path)
+        match = re.search(r'(\d+)', filename)
         
-        # Assume label has the same filename
-        lbl_path = os.path.join(label_dir, file_name)
-        
-        # Only add to list if BOTH image and label exist
-        if os.path.exists(lbl_path):
-            datalist.append({"image": img_path, "label": lbl_path})
+        if match:
+            file_id = match.group(1)
+            
+            if file_id in label_map:
+                datalist.append({
+                    "image": img_path,
+                    "label": label_map[file_id]
+                })
+                print(f"Matched ID {file_id}: {os.path.basename(img_path)} <-> {os.path.basename(label_map[file_id])}")
+            else:
+                print(f"Warning: No label found for ID {file_id} (Image: {filename})")
         else:
-            print(f"Warning: Label not found for {file_name}, skipping.")
+            print(f"Warning: Could not extract an ID number from filename: {filename}")
 
     if not datalist:
         raise ValueError("No matching image/label pairs found!")
