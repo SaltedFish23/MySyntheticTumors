@@ -42,10 +42,10 @@ def get_generation_transform(args):
         
         # Optional: Normalize intensity to 0-1 range. 
         # Comment this out if you want to keep original intensity range.
-        transforms.ScaleIntensityRanged(
-            keys=["image"], a_min=-21, a_max=189,
-            b_min=0.0, b_max=1.0, clip=True,
-        ),
+        # transforms.ScaleIntensityRanged(
+        #     keys=["image"], a_min=-21, a_max=189,
+        #     b_min=0.0, b_max=1.0, clip=True,
+        # ),
         
         transforms.ToTensord(keys=["image", "label"]),
     ]
